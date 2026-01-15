@@ -3,6 +3,7 @@
 import { ProverbsCard } from "@/components/proverbs";
 import { WeatherCard } from "@/components/weather";
 import { MoonCard } from "@/components/moon";
+import { CompanyInfoCard } from "@/components/company-info";
 import { useCoAgent, useFrontendTool, useHumanInTheLoop } from "@copilotkit/react-core";
 import { CopilotPopup } from "@copilotkit/react-ui"; // 1. Import CopilotPopup
 import { useState } from "react";
@@ -11,18 +12,19 @@ export default function CopilotKitPage() {
   // --- STATE MANAGEMENT ---
   const [themeColor, setThemeColor] = useState("#2563EB");
   const [weatherData, setWeatherData] = useState<string | null>(null);
-  const [activeComponent, setActiveComponent] = useState<"proverbs" | "weather" | "moon" | null>(null);
+  const [activeComponent, setActiveComponent] = useState<"proverbs" | "weather" | "moon" | "company" | null>(null);
+  const [companyInfo, setCompanyInfo] = useState<any[]>([]);
   const [moonStatus, setMoonStatus] = useState<any>(null);
   const [moonRespond, setMoonRespond] = useState<any>(null);
 
   // --- AGENT CONNECTION ---
-  const { state, setState } = useCoAgent({ 
+  const { state, setState } = useCoAgent({
     name: "sample_agent",
-    initialState: { proverbs: [] } 
+    initialState: { proverbs: [] }
   });
 
   // --- TOOLS (Logic) ---
-  
+
   // Theme Color Tool
   useFrontendTool({
     name: "setThemeColor",
@@ -42,6 +44,16 @@ export default function CopilotKitPage() {
     },
   });
 
+  // Company Info Tool
+  useFrontendTool({
+    name: "show_company_info",
+    parameters: [{ name: "info", type: "object", required: true }],
+    handler({ info }) {
+      setCompanyInfo(info as any[]);
+      setActiveComponent("company");
+    },
+  });
+
   // Proverbs View Switcher
   useFrontendTool({
     name: "show_proverbs_view",
@@ -56,9 +68,9 @@ export default function CopilotKitPage() {
       name: "go_to_moon",
       render: ({ respond, status }) => {
         if (status !== moonStatus) {
-            setMoonStatus(status);
-            setMoonRespond(() => respond);
-            setActiveComponent("moon");
+          setMoonStatus(status);
+          setMoonRespond(() => respond);
+          setActiveComponent("moon");
         }
         // Return text for inside the chat popup
         return <p className="text-sm">🚀 Mission Control active on main screen.</p>;
@@ -70,7 +82,7 @@ export default function CopilotKitPage() {
   return (
     <main
       className="flex flex-col h-screen relative overflow-hidden transition-colors duration-500"
-      style={{ 
+      style={{
         "--copilot-kit-primary-color": themeColor,
         backgroundColor: activeComponent ? "#f3f4f6" : "#ffffff"
       } as any}
@@ -82,22 +94,22 @@ export default function CopilotKitPage() {
         ----------------------------------------------------
       */}
       <div className="flex-1 flex items-center justify-center p-8 overflow-y-auto">
-        
+
         {/* Empty State */}
         {!activeComponent && (
-            <div className="text-center max-w-lg">
-                <h1 className="text-5xl font-extrabold mb-6 text-gray-800 tracking-tight">
-                  CoAgent Canvas
-                </h1>
-                <p className="text-xl text-gray-500">
-                  Open the chat bubble ↘️ to control this screen.
-                </p>
-                <div className="mt-8 flex justify-center gap-4 text-sm text-gray-400">
-                   <span>Try: "Check weather in Tokyo"</span>
-                   <span>•</span>
-                   <span>"Show me proverbs"</span>
-                </div>
+          <div className="text-center max-w-lg">
+            <h1 className="text-5xl font-extrabold mb-6 text-gray-800 tracking-tight">
+              CoAgent Canvas
+            </h1>
+            <p className="text-xl text-gray-500">
+              Open the chat bubble ↘️ to control this screen.
+            </p>
+            <div className="mt-8 flex justify-center gap-4 text-sm text-gray-400">
+              <span>Try: "Check weather in Tokyo"</span>
+              <span>•</span>
+              <span>"Show me proverbs"</span>
             </div>
+          </div>
         )}
 
         {/* Dynamic Components */}
@@ -114,9 +126,15 @@ export default function CopilotKitPage() {
         )}
 
         {activeComponent === "moon" && (
-            <div className="w-full max-w-xl animate-in fade-in duration-300">
-                 <MoonCard themeColor={themeColor} status={moonStatus} respond={moonRespond} />
-            </div>
+          <div className="w-full max-w-xl animate-in fade-in duration-300">
+            <MoonCard themeColor={themeColor} status={moonStatus} respond={moonRespond} />
+          </div>
+        )}
+
+        {activeComponent === "company" && (
+          <div className="w-full max-w-5xl animate-in fade-in zoom-in duration-500">
+            <CompanyInfoCard info={companyInfo} themeColor={themeColor} />
+          </div>
         )}
 
       </div>
@@ -127,7 +145,7 @@ export default function CopilotKitPage() {
         ----------------------------------------------------
       */}
       <CopilotPopup
-        instructions="You are a helpful assistant. Call 'show_proverbs_view' for proverbs, 'get_weather' for weather."
+        instructions="You are a helpful assistant. Call 'show_proverbs_view' for proverbs, 'get_weather' for weather, and 'show_company_info' to show company data cards."
         labels={{
           title: "Assistant",
           initial: "Hi! I can update the screen for you. Try asking for the weather.",
@@ -135,7 +153,7 @@ export default function CopilotKitPage() {
         defaultOpen={false} // Start closed (bubble mode)
         clickOutsideToClose={false} // Keep it open while interacting
       />
-      
+
     </main>
   );
 }
