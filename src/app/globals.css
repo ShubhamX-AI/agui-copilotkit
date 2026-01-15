@@ -22,3 +22,13 @@ body,
 html {
   height: 100%;
 }
+
+/* Hide the chat header if you want a cleaner look */
+.copilotKitChatHeader {
+  display: none !important;
+}
+
+/* Optional: Make the message list background transparent */
+.copilotKitMessageList {
+  background: white;
+}

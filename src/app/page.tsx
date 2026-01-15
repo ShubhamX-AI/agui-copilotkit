@@ -3,152 +3,139 @@
 import { ProverbsCard } from "@/components/proverbs";
 import { WeatherCard } from "@/components/weather";
 import { MoonCard } from "@/components/moon";
-import { AgentState } from "@/lib/types";
-import {
-  useCoAgent,
-  useDefaultTool,
-  useFrontendTool,
-  useHumanInTheLoop,
-  useLangGraphInterrupt,
-  useRenderToolCall,
-} from "@copilotkit/react-core";
-import { CopilotKitCSSProperties, CopilotSidebar } from "@copilotkit/react-ui";
+import { useCoAgent, useFrontendTool, useHumanInTheLoop } from "@copilotkit/react-core";
+import { CopilotPopup } from "@copilotkit/react-ui"; // 1. Import CopilotPopup
 import { useState } from "react";
 
 export default function CopilotKitPage() {
-  const [themeColor, setThemeColor] = useState("#6366f1");
+  // --- STATE MANAGEMENT ---
+  const [themeColor, setThemeColor] = useState("#2563EB");
+  const [weatherData, setWeatherData] = useState<string | null>(null);
+  const [activeComponent, setActiveComponent] = useState<"proverbs" | "weather" | "moon" | null>(null);
+  const [moonStatus, setMoonStatus] = useState<any>(null);
+  const [moonRespond, setMoonRespond] = useState<any>(null);
 
-  // 🪁 Frontend Actions: https://docs.copilotkit.ai/pydantic-ai/frontend-actions
+  // --- AGENT CONNECTION ---
+  const { state, setState } = useCoAgent({ 
+    name: "sample_agent",
+    initialState: { proverbs: [] } 
+  });
+
+  // --- TOOLS (Logic) ---
+  
+  // Theme Color Tool
   useFrontendTool({
     name: "setThemeColor",
-    parameters: [
-      {
-        name: "themeColor",
-        description: "The theme color to set. Make sure to pick nice colors.",
-        required: true,
-      },
-    ],
+    parameters: [{ name: "themeColor", type: "string", required: true }],
     handler({ themeColor }) {
       setThemeColor(themeColor);
     },
   });
 
-  return (
-    <main
-      style={
-        { "--copilot-kit-primary-color": themeColor } as CopilotKitCSSProperties
-      }
-    >
-      <CopilotSidebar
-        disableSystemMessage={true}
-        clickOutsideToClose={false}
-        labels={{
-          title: "Popup Assistant",
-          initial: "👋 Hi, there! You're chatting with an agent.",
-        }}
-        suggestions={[
-          {
-            title: "Generative UI",
-            message: "Get the weather in San Francisco.",
-          },
-          {
-            title: "Frontend Tools",
-            message: "Set the theme to green.",
-          },
-          {
-            title: "Human In the Loop",
-            message: "Please go to the moon.",
-          },
-          {
-            title: "Write Agent State",
-            message: "Add a proverb about AI.",
-          },
-          {
-            title: "Update Agent State",
-            message:
-              "Please remove 1 random proverb from the list if there are any.",
-          },
-          {
-            title: "Read Agent State",
-            message: "What are the proverbs?",
-          },
-        ]}
-      >
-        <YourMainContent themeColor={themeColor} />
-      </CopilotSidebar>
-    </main>
-  );
-}
-
-function YourMainContent({ themeColor }: { themeColor: string }) {
-  // 🪁 Shared State: https://docs.copilotkit.ai/pydantic-ai/shared-state
-  const { state, setState } = useCoAgent({
-    name: "sample_agent",
-  });
-
-  // 🪁 Frontend Actions: https://docs.copilotkit.ai/coagents/frontend-actions
+  // Weather Tool
   useFrontendTool({
-    name: "updateProverbs",
-    description: "Update the list of proverbs. Always describe what the proverbs you added are.",
-    parameters: [
-      {
-        name: "proverbs",
-        description: "What the current list of proverbs should be updated to",
-        type: "string[]",
-        required: true,
-      },
-    ],
-    handler: ({ proverbs }) => {
-      setState({
-        ...state,
-        proverbs: proverbs,
-      });
+    name: "get_weather",
+    parameters: [{ name: "location", type: "string", required: true }],
+    handler({ location }) {
+      setWeatherData(location);
+      setActiveComponent("weather");
     },
   });
 
-  //🪁 Generative UI: https://docs.copilotkit.ai/pydantic-ai/generative-ui
-  useRenderToolCall(
-    {
-      name: "get_weather",
-      description: "Get the weather for a given location.",
-      parameters: [{ name: "location", type: "string", required: true }],
-      render: ({ args }) => {
-        return <WeatherCard location={args.location} themeColor={themeColor} />;
-      },
-    },
-    [themeColor],
-  );
+  // Proverbs View Switcher
+  useFrontendTool({
+    name: "show_proverbs_view",
+    handler() {
+      setActiveComponent("proverbs");
+    }
+  });
 
-  useDefaultTool({
-    render: ({ name, status }) => {
-      const textStyles = "text-gray-500 text-sm mt-2"
-      if(status !== "complete") {
-        return <p className={textStyles}>Calling {name}...</p>;
-      }
-      return <p className={textStyles}>Called {name}!</p>;
-    },
-  })
-
-  // 🪁 Human In the Loop: https://docs.copilotkit.ai/pydantic-ai/human-in-the-loop
+  // Human In the Loop (Moon)
   useHumanInTheLoop(
     {
       name: "go_to_moon",
-      description: "Go to the moon on request.",
       render: ({ respond, status }) => {
-        return (
-          <MoonCard themeColor={themeColor} status={status} respond={respond} />
-        );
+        if (status !== moonStatus) {
+            setMoonStatus(status);
+            setMoonRespond(() => respond);
+            setActiveComponent("moon");
+        }
+        // Return text for inside the chat popup
+        return <p className="text-sm">🚀 Mission Control active on main screen.</p>;
       },
     },
-    [themeColor],
+    []
   );
 
   return (
-    <div
-      style={{ backgroundColor: themeColor }}
-      className="h-screen flex justify-center items-center flex-col transition-colors duration-300"
+    <main
+      className="flex flex-col h-screen relative overflow-hidden transition-colors duration-500"
+      style={{ 
+        "--copilot-kit-primary-color": themeColor,
+        backgroundColor: activeComponent ? "#f3f4f6" : "#ffffff"
+      } as any}
     >
-      <ProverbsCard state={state} setState={setState} />
-    </div>
+      {/* 
+        ----------------------------------------------------
+        MAIN CANVAS AREA (Results Display)
+        This occupies the entire screen behind the popup
+        ----------------------------------------------------
+      */}
+      <div className="flex-1 flex items-center justify-center p-8 overflow-y-auto">
+        
+        {/* Empty State */}
+        {!activeComponent && (
+            <div className="text-center max-w-lg">
+                <h1 className="text-5xl font-extrabold mb-6 text-gray-800 tracking-tight">
+                  CoAgent Canvas
+                </h1>
+                <p className="text-xl text-gray-500">
+                  Open the chat bubble ↘️ to control this screen.
+                </p>
+                <div className="mt-8 flex justify-center gap-4 text-sm text-gray-400">
+                   <span>Try: "Check weather in Tokyo"</span>
+                   <span>•</span>
+                   <span>"Show me proverbs"</span>
+                </div>
+            </div>
+        )}
+
+        {/* Dynamic Components */}
+        {activeComponent === "proverbs" && (
+          <div className="w-full max-w-3xl animate-in fade-in zoom-in duration-300">
+            <ProverbsCard state={state} setState={setState} />
+          </div>
+        )}
+
+        {activeComponent === "weather" && weatherData && (
+          <div className="w-full max-w-xl animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <WeatherCard location={weatherData} themeColor={themeColor} />
+          </div>
+        )}
+
+        {activeComponent === "moon" && (
+            <div className="w-full max-w-xl animate-in fade-in duration-300">
+                 <MoonCard themeColor={themeColor} status={moonStatus} respond={moonRespond} />
+            </div>
+        )}
+
+      </div>
+
+      {/* 
+        ----------------------------------------------------
+        COPILOT POPUP (Bottom Right Widget)
+        ----------------------------------------------------
+      */}
+      <CopilotPopup
+        instructions="You are a helpful assistant. Call 'show_proverbs_view' for proverbs, 'get_weather' for weather."
+        labels={{
+          title: "Assistant",
+          initial: "Hi! I can update the screen for you. Try asking for the weather.",
+        }}
+        defaultOpen={false} // Start closed (bubble mode)
+        clickOutsideToClose={false} // Keep it open while interacting
+      />
+      
+    </main>
   );
 }
