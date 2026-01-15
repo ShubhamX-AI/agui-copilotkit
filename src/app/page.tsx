@@ -37,20 +37,38 @@ export default function CopilotKitPage() {
     setWidgets(prev => prev.filter(w => w.id !== id));
   };
 
-  const addWidget = (type: Widget["type"], title: string, data: any) => {
-    const id = Math.random().toString(36).substring(7);
-    const offset = widgets.length * 30; // Stagger new windows
+  const addWidget = (type: Widget["type"], title: string, data: any, id?: string) => {
+    // Check if widget already exists by ID (if provided) or Title (as fallback for dynamic cards)
+    const existingIndex = widgets.findIndex(w => (id && w.id === id) || (type === "dynamic_card" && w.title === title));
 
-    // Check if widget of this type already exists (optional, but good for singletons like weather)
-    // For now we allow multiple, but let's just append.
+    if (existingIndex !== -1) {
+      // UPSERT: Update existing widget
+      setWidgets(prev => {
+        const newWidgets = [...prev];
+        const existing = newWidgets[existingIndex];
+        newWidgets[existingIndex] = {
+          ...existing,
+          title, // Update title if it changed
+          data: { ...existing.data, ...data }, // Merge data
+          zIndex: highestZ + 1 // Bring to front on update
+        };
+        return newWidgets;
+      });
+      setHighestZ(prev => prev + 1);
+      return;
+    }
+
+    // CREATE NEW
+    const newId = id || Math.random().toString(36).substring(7);
+    const offset = widgets.length * 30;
 
     const newWidget: Widget = {
-      id,
+      id: newId,
       type,
       title,
       data,
       zIndex: highestZ + 1,
-      position: { x: offset, y: offset } // Initial staggered position
+      position: { x: offset, y: offset }
     };
 
     setHighestZ(prev => prev + 1);
@@ -91,9 +109,6 @@ export default function CopilotKitPage() {
     name: "show_company_info",
     parameters: [{ name: "info", type: "object", required: true }],
     handler({ info }) {
-      // Add a widget for EACH card in the info array (if multiple)
-      // Or one widget containing all cards? Let's do one widget per card for maximum drag freedom as requested.
-
       (info as any[]).forEach((item) => {
         addWidget("company", item.title, item);
       });
@@ -104,12 +119,14 @@ export default function CopilotKitPage() {
   useFrontendTool({
     name: "show_dynamic_card",
     parameters: [
+      { name: "id", type: "string", required: false, description: "Stable ID to update existing card" },
       { name: "title", type: "string", required: true },
       { name: "content", type: "object[]", required: true },
       { name: "design", type: "object", required: false }
     ],
-    handler({ title, content, design }) {
-      addWidget("dynamic_card", title, { title, content, design });
+    handler({ id, title, content, design }) {
+      // Pass ID if available so addWidget can target it
+      addWidget("dynamic_card", title, { title, content, design }, id);
     }
   });
 
@@ -175,7 +192,9 @@ export default function CopilotKitPage() {
         {/* Dynamic Widgets */}
         {widgets.map((widget) => {
           const isUniversal = widget.type === "dynamic_card";
-          const theme = isUniversal ? (widget.data as UniversalCardData).design?.themeColor : themeColor;
+          // FIX: Ensure we fallback to null if design is missing, so we don't crash
+          // And precedence: widget-specific color -> method-specific color -> default blue
+          const designColor = isUniversal ? (widget.data as UniversalCardData).design?.themeColor : null;
 
           return (
             <WidgetWrapper
@@ -187,7 +206,7 @@ export default function CopilotKitPage() {
               onClose={closeWidget}
               onFocus={bringToFront}
               dragConstraintsRef={constraintsRef}
-              themeColor={theme || themeColor}
+              themeColor={designColor || themeColor}
               resizable={isUniversal} // Enable resizing for Universal Cards
             >
               {widget.type === "proverbs" && <ProverbsCard state={state} setState={setState} />}

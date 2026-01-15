@@ -61,23 +61,21 @@ When the user asks for information, use the `show_dynamic_card` tool to display 
 
 RULES:
 1. You can display ANY information using `show_dynamic_card`.
-2. Construct the `content` array with blocks:
+2. **State Management**: 
+   - Use a generic `id` (e.g., "weather_card", "info_result") if you want to UPDATE an existing card instead of creating a new one.
+   - If the user asks to "change the color" or "update the font", call the tool again with the SAME `id` and the new design values.
+3. Construct the `content` array with blocks:
    - {"type": "text", "value": "...", "variant": "header" | "body"}
    - {"type": "image", "url": "...", "caption": "..."}
    - {"type": "key_value", "data": {"Key": "Value"}}
-3. Be creative with the `design` object to match the content's vibe:
+4. Be creative with the `design` object to match the content's vibe:
    - {"themeColor": "#hex", "fontFamily": "serif" | "sans" | "mono", "backgroundColor": "#hex"}
-   - Use 'serif' for literature/history, 'mono' for code/technical, 'sans' for general.
 
-Example:
-If asked about Apple, call `show_dynamic_card` with:
-title="Apple Inc."
-design={"themeColor": "#000000", "fontFamily": "sans"}
-content=[
-  {"type": "image", "url": "...", "caption": "Apple HQ"},
-  {"type": "text", "value": "Apple is a technology company...", "variant": "body"},
-  {"type": "key_value", "data": {"CEO": "Tim Cook", "Founded": "1976"}}
-]
+Example - Create:
+`show_dynamic_card(id="apple", title="Apple Inc.", design={"themeColor": "gray"}, content=[...])`
+
+Example - Update (Change Color):
+`show_dynamic_card(id="apple", title="Apple Inc.", design={"themeColor": "red"}, content=[...])`
 """
 )
 
