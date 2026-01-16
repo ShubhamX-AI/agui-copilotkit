@@ -7,9 +7,10 @@ import { CompanyCard } from "@/components/company-info";
 import { UniversalCard, UniversalCardData } from "@/components/universal-card";
 import { WidgetWrapper } from "@/components/widget-wrapper";
 import { WIDGET_REGISTRY } from "@/config/widget-registry";
-import { useCoAgent, useFrontendTool, useHumanInTheLoop } from "@copilotkit/react-core";
+import { useCoAgent, useFrontendTool, useHumanInTheLoop, useCopilotChat } from "@copilotkit/react-core";
+import { Role, TextMessage } from "@copilotkit/runtime-client-gql";
 import { CustomChatInterface } from "@/components/custom-chat";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 
 interface Widget {
   id: string;
@@ -116,20 +117,42 @@ export default function CopilotKitPage() {
     },
   });
 
-  // Universal / Dynamic Card Tool
+  // Universal / Dynamic Card Tool (Generative UI)
   useFrontendTool({
     name: "show_dynamic_card",
+    description: "Displays a flexible card with mixed content: markdown, images, key_value pairs, and INTERACTIVE FORMS. Use this for general answers, reports, or when asking the user for input.",
     parameters: [
       { name: "id", type: "string", required: false, description: "Stable ID to update existing card" },
       { name: "title", type: "string", required: true },
-      { name: "content", type: "object[]", required: true },
-      { name: "design", type: "object", required: false }
+      { name: "content", type: "object[]", required: true, description: "Array of blocks: {type: 'markdown'|'image'|'form', ...props}" },
+      { name: "design", type: "object", required: false, description: "{themeColor: string, fontFamily: 'serif'|'mono'|'sans'}" }
     ],
     handler({ id, title, content, design }) {
-      // Pass ID if available so addWidget can target it
       addWidget("dynamic_card", title, { title, content, design }, id);
     }
   });
+
+  // Handle actions from UniversalCard (Forms/Buttons)
+  // This connects the UI back to the agentic flow
+  const { appendMessage } = useCopilotChat();
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleAguiAction = (e: any) => {
+      const { action, payload, cardTitle } = e.detail;
+      console.log("Handling AGUI action:", action, payload);
+
+      // Append a hidden message or user message to trigger the agent's next step
+      appendMessage(
+        new TextMessage({
+          role: Role.User,
+          content: `[Form Submitted: ${cardTitle}]\nAction: ${action}\nData: ${JSON.stringify(payload, null, 2)}`
+        })
+      );
+    };
+    window.addEventListener("agui:action", handleAguiAction);
+    return () => window.removeEventListener("agui:action", handleAguiAction);
+  }, [appendMessage]);
 
   // Delete Card Tool
   useFrontendTool({
