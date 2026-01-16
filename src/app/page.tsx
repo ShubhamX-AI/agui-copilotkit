@@ -1,6 +1,5 @@
 "use client";
 
-import { CompanyCard } from "@/components/company-info";
 import { UniversalCard, UniversalCardData } from "@/components/universal-card";
 import { WidgetWrapper } from "@/components/widget-wrapper";
 import { WIDGET_REGISTRY } from "@/config/widget-registry";
@@ -11,7 +10,7 @@ import { useState, useRef, useEffect } from "react";
 
 interface Widget {
   id: string;
-  type: "company" | "dynamic_card";
+  type: "dynamic_card";
   title: string;
   data: any;
   zIndex: number;
@@ -124,7 +123,9 @@ export default function CopilotKitPage() {
 
   // Handle actions from UniversalCard (Forms/Buttons)
   // This connects the UI back to the agentic flow
-  const { appendMessage } = useCopilotChat();
+  const { appendMessage } = useCopilotChat({
+    id: "main-chat"
+  });
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -197,10 +198,8 @@ export default function CopilotKitPage() {
 
         {/* Dynamic Widgets */}
         {widgets.map((widget) => {
-          const isUniversal = widget.type === "dynamic_card";
-          // FIX: Ensure we fallback to null if design is missing, so we don't crash
-          // And precedence: widget-specific color -> method-specific color -> default blue
-          const designColor = isUniversal ? (widget.data as UniversalCardData).design?.themeColor : null;
+          // All widgets are now dynamic_card based
+          const designColor = (widget.data as UniversalCardData).design?.themeColor;
 
           return (
             <WidgetWrapper
@@ -213,11 +212,9 @@ export default function CopilotKitPage() {
               onFocus={bringToFront}
               dragConstraintsRef={constraintsRef}
               themeColor={designColor || themeColor}
-              resizable={isUniversal || WIDGET_REGISTRY[widget.type]?.resizable}
-
+              resizable={WIDGET_REGISTRY[widget.type as keyof typeof WIDGET_REGISTRY]?.resizable}
             >
-              {widget.type === "company" && <CompanyCard item={widget.data} themeColor={themeColor} />}
-              {widget.type === "dynamic_card" && <UniversalCard data={widget.data} />}
+              <UniversalCard data={widget.data} />
             </WidgetWrapper>
           );
         })}
