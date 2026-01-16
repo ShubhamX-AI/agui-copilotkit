@@ -86,9 +86,9 @@ export default function CopilotKitPage() {
     initialState: { proverbs: [] }
   });
 
-  // --- TOOLS (Logic) ---
+  // --- FRONTEND TOOLS (UI Rendering & Actions) ---
 
-  // Theme Color Tool
+  // Theme Color Tool (Action)
   useFrontendTool({
     name: "setThemeColor",
     parameters: [{ name: "themeColor", type: "string", required: true }],
@@ -97,27 +97,23 @@ export default function CopilotKitPage() {
     },
   });
 
-  // Weather Tool
+  // Universal UI Tool - Primary rendering tool
   useFrontendTool({
-    name: "get_weather",
-    parameters: [{ name: "location", type: "string", required: true }],
-    handler({ location }) {
-      addWidget("weather", `Weather: ${location}`, location);
-    },
+    name: "render_ui",
+    description: "Displays a flexible card with mixed content: markdown, images, key_value pairs, and INTERACTIVE FORMS. Use this for general answers, reports, or when asking the user for input.",
+    parameters: [
+      { name: "id", type: "string", required: false, description: "Stable ID to update existing card" },
+      { name: "title", type: "string", required: true },
+      { name: "content", type: "object[]", required: true, description: "Array of blocks: {type: 'markdown'|'image'|'form', ...props}" },
+      { name: "design", type: "object", required: false, description: "{themeColor: string, fontFamily: 'serif'|'mono'|'sans'}" },
+      { name: "layout", type: "string", required: false, description: "'vertical' or 'grid'" }
+    ],
+    handler({ id, title, content, design }) {
+      addWidget("dynamic_card", title, { title, content, design }, id);
+    }
   });
 
-  // Company Info Tool
-  useFrontendTool({
-    name: "show_company_info",
-    parameters: [{ name: "info", type: "object", required: true }],
-    handler({ info }) {
-      (info as any[]).forEach((item) => {
-        addWidget("company", item.title, item);
-      });
-    },
-  });
-
-  // Universal / Dynamic Card Tool (Generative UI)
+  // Backwards compatibility alias
   useFrontendTool({
     name: "show_dynamic_card",
     description: "Displays a flexible card with mixed content: markdown, images, key_value pairs, and INTERACTIVE FORMS. Use this for general answers, reports, or when asking the user for input.",
@@ -175,13 +171,7 @@ export default function CopilotKitPage() {
   });
 
 
-  // Proverbs View Switcher
-  useFrontendTool({
-    name: "show_proverbs_view",
-    handler() {
-      addWidget("proverbs", "Proverbs", {});
-    }
-  });
+
 
   // Human In the Loop (Moon)
   useHumanInTheLoop(
