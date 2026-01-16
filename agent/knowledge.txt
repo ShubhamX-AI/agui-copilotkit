@@ -1,0 +1,25 @@
+# AGUI Platform - Company Knowledge Base
+
+## About AGUI
+AGUI (Advanced Graphical User Interface) is a cutting-edge platform specializing in AI-driven dynamic user interfaces. Our mission is to bridge the gap between complex AI logic and intuitive human experience.
+
+## Refund Policy
+Our refund policy is simple:
+- 100% refund within the first 14 days if you are not satisfied with the platform.
+- After 14 days, refunds are handled on a case-by-case basis through our support team.
+- Subscriptions can be canceled at any time, but partial month refunds are not provided.
+
+## Company History
+- **2023**: Founded in San Francisco by a team of AI researchers and designers.
+- **2024**: Launched our first beta of the dynamic UI engine.
+- **2025**: Expanded to London and Bangalore.
+- **2026**: Rebranded to INT Intelligence (Integrated Intelligence).
+
+## Contact Information
+- **Support Email**: support@agui.ai
+- **Sales Inquiries**: sales@agui.ai
+- **Headquarters**: 123 AI Way, San Francisco, CA 94105, USA.
+
+## Technical Support
+For technical issues, please visit our documentation at docs.agui.ai or join our developer Discord server.
+Our support team is available 24/7 for Enterprise customers and 9 AM - 6 PM PST for Standard customers.

@@ -15,6 +15,14 @@ from langchain.agents import create_agent
 from copilotkit import CopilotKitMiddleware, CopilotKitState
 from system_prompt import AGENT_PROMPT
 from structure import AgentOutputSchema
+import os
+from langchain_openai import OpenAIEmbeddings
+from langchain_chroma import Chroma
+
+# Initialize Vector Store
+persist_directory = os.path.join(os.path.dirname(__file__), "chroma_db")
+embeddings = OpenAIEmbeddings()
+vectorstore = Chroma(persist_directory=persist_directory, embedding_function=embeddings)
 
 # ============================================================
 # 1. DATA TOOLS (The "Brain" - Fetch Facts)
@@ -51,13 +59,36 @@ def get_company_data(info_types: List[Literal["services", "location"]]):
     return data
 
 
+@tool
+def search_knowledge_base(query: str):
+    """
+    Searches the internal knowledge base for specific company information, policies, or technical details.
+    Returns structured JSON with content, image_urls, and source citations.
+    
+    Args:
+        query: The search query string
+    """
+    results = vectorstore.similarity_search(query, k=3)
+    
+    structured_results = []
+    for doc in results:
+        structured_results.append({
+            "content": doc.page_content,
+            "source": doc.metadata.get("source", "Unknown"),
+            "images": doc.metadata.get("image_urls", "").split(",") if doc.metadata.get("image_urls") else []
+        })
+    
+    import json
+    return json.dumps(structured_results, indent=2)
+
+
 
 # ============================================================
 # 2. UNIVERSAL UI TOOL (The "Interface Contract")
 # ============================================================
 
 @tool
-def render_ui(title: str, content: List[Dict[str, Any]], id: str = None, design: dict = None, layout: str = "vertical"):
+def render_ui(title: str, content: List[Dict[str, Any]], id: str = None, design: dict = None, layout: str = "vertical", clearHistory: bool = False):
     """
     The PRIMARY tool for generating UI. This is the bridge to the frontend.
     Tell the user what to show on the screen.
@@ -68,6 +99,7 @@ def render_ui(title: str, content: List[Dict[str, Any]], id: str = None, design:
         id: Optional stable ID to update existing card
         design: Optional design config: {themeColor: str, fontFamily: 'serif'|'mono'|'sans', backgroundColor: str}
         layout: 'vertical' or 'grid'
+        clearHistory: If True, removes all previous cards before rendering this one. Default False.
         
     Content Block Types:
     - markdown: {"type": "markdown", "content": "text"}
@@ -131,6 +163,7 @@ agent = create_agent(
     tools=[
         # Data Tools (Pure Functions)
         get_company_data,
+        search_knowledge_base,
         
         # Universal UI Tool (The Bridge)
         render_ui,

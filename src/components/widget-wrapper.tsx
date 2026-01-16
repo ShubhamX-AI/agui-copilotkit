@@ -10,6 +10,7 @@ interface WidgetWrapperProps {
     onFocus: (id: string) => void;
     zIndex: number;
     initialPosition?: { x: number; y: number };
+    initialSize?: { width: number; height: number | "auto" };
     themeColor?: string;
     children: React.ReactNode;
     dragConstraintsRef?: React.RefObject<HTMLDivElement | null>;
@@ -23,13 +24,15 @@ export const WidgetWrapper = ({
     onFocus,
     zIndex,
     initialPosition = { x: 0, y: 0 },
+    initialSize,
     themeColor = "#2563EB",
     children,
     dragConstraintsRef,
     resizable = false,
 }: WidgetWrapperProps) => {
     const dragControls = useDragControls();
-    const [size, setSize] = useState({ width: 320, height: "auto" as number | "auto" });
+    // Default to a wider, more premium 400px if no size provided
+    const [size, setSize] = useState(initialSize || { width: 400, height: "auto" as number | "auto" });
     const contentRef = useRef<HTMLDivElement>(null);
 
     // Sync initial height if needed, or just let it be auto. 
@@ -72,14 +75,14 @@ export const WidgetWrapper = ({
             whileDrag={{ scale: 1.02 }}
             initial={{ opacity: 0, scale: 0.9, ...initialPosition }}
             animate={{ opacity: 1, scale: 1, x: initialPosition.x, y: initialPosition.y }}
-            className="absolute flex flex-col bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-200"
+            className="absolute flex flex-col bg-white/80 backdrop-blur-2xl rounded-3xl shadow-2xl overflow-hidden border border-white/40 ring-1 ring-black/5"
             style={{
                 zIndex,
                 width: size.width,
                 height: size.height === "auto" ? "auto" : size.height,
                 minWidth: "320px",
                 maxWidth: "90vw",
-                boxShadow: "0 20px 50px -12px rgba(0, 0, 0, 0.25)",
+                boxShadow: "0 20px 60px -15px rgba(0, 0, 0, 0.15), 0 0 2px rgba(0,0,0,0.05)",
             }}
             onPointerDown={() => onFocus(id)}
             ref={contentRef}
@@ -87,7 +90,7 @@ export const WidgetWrapper = ({
             {/* Header / Drag Handle */}
             <div
                 onPointerDown={(e) => dragControls.start(e)}
-                className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-100 cursor-grab active:cursor-grabbing select-none shrink-0"
+                className="flex items-center justify-between px-5 py-4 bg-white/40 border-b border-white/20 cursor-grab active:cursor-grabbing select-none shrink-0 backdrop-blur-sm"
             >
                 <div className="flex items-center gap-3">
                     <div
