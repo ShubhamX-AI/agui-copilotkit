@@ -14,6 +14,7 @@ from langchain.tools import tool
 from langchain.agents import create_agent
 from copilotkit import CopilotKitMiddleware, CopilotKitState
 from system_prompt import AGENT_PROMPT
+from structure import AgentOutputSchema
 
 # ============================================================
 # 1. DATA TOOLS (The "Brain" - Fetch Facts)
@@ -49,40 +50,7 @@ def get_company_data(info_types: List[Literal["services", "location"]]):
         
     return data
 
-@tool
-def get_weather_data(location: str):
-    """
-    Fetches weather data for a location.
-    In a real app, this would call an external API.
-    
-    Args:
-        location: City name or location to get weather for
-        
-    Returns:
-        Dictionary with weather information
-    """
-    # Simulated weather data - in production, call a real API
-    return {
-        "location": location,
-        "temperature": "72°F",
-        "condition": "Sunny",
-        "humidity": "45%",
-        "wind": "8 mph"
-    }
 
-@tool
-def get_proverbs():
-    """
-    Fetches a list of proverbs or wisdom quotes.
-    
-    Returns:
-        List of proverb strings
-    """
-    return [
-        "A journey of a thousand miles begins with a single step.",
-        "The best time to plant a tree was 20 years ago. The second best time is now.",
-        "Fall seven times, stand up eight."
-    ]
 
 # ============================================================
 # 2. UNIVERSAL UI TOOL (The "Interface Contract")
@@ -123,23 +91,6 @@ show_dynamic_card = render_ui
 # ============================================================
 
 @tool
-def send_email(to: str, subject: str, body: str):
-    """
-    Sends an email to a recipient.
-    This is a pure action tool with no UI.
-    
-    Args:
-        to: Email address
-        subject: Email subject
-        body: Email body content
-    """
-    print(f"LOG: Sending email to {to}...")
-    print(f"Subject: {subject}")
-    print(f"Body: {body}")
-    # In production, integrate with SendGrid, AWS SES, etc.
-    return "Email sent successfully."
-
-@tool
 def setThemeColor(themeColor: str):
     """
     Changes the primary theme color of the website.
@@ -161,14 +112,6 @@ def delete_card(id: str = None, title: str = None):
     """
     return "Card deleted."
 
-@tool
-def go_to_moon():
-    """
-    Initiates the moon mission sequence (Human-in-the-loop demo).
-    This is kept for demonstration purposes.
-    """
-    return "Moon mission initiated."
-
 # ============================================================
 # 4. STATE MANAGEMENT
 # ============================================================
@@ -177,7 +120,7 @@ class AgentState(CopilotKitState):
     """
     Agent state schema. Store session-specific data here.
     """
-    proverbs: List[str]
+    pass
 
 # ============================================================
 # 5. AGENT CONFIGURATION
@@ -188,22 +131,19 @@ agent = create_agent(
     tools=[
         # Data Tools (Pure Functions)
         get_company_data,
-        get_weather_data,
-        get_proverbs,
         
         # Universal UI Tool (The Bridge)
         render_ui,
         show_dynamic_card,  # Alias for backwards compatibility
         
         # Action Tools (State Mutations)
-        send_email,
         setThemeColor,
         delete_card,
-        go_to_moon,
     ],
     middleware=[CopilotKitMiddleware()],
     state_schema=AgentState,
-    system_prompt=AGENT_PROMPT
+    system_prompt=AGENT_PROMPT,
+    # response_format=AgentOutputSchema
 )
 
 graph = agent

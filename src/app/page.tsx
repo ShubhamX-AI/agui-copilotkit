@@ -1,20 +1,17 @@
 "use client";
 
-import { ProverbsCard } from "@/components/proverbs";
-import { WeatherCard } from "@/components/weather";
-import { MoonCard } from "@/components/moon";
 import { CompanyCard } from "@/components/company-info";
 import { UniversalCard, UniversalCardData } from "@/components/universal-card";
 import { WidgetWrapper } from "@/components/widget-wrapper";
 import { WIDGET_REGISTRY } from "@/config/widget-registry";
-import { useCoAgent, useFrontendTool, useHumanInTheLoop, useCopilotChat } from "@copilotkit/react-core";
+import { useCoAgent, useFrontendTool, useCopilotChat } from "@copilotkit/react-core";
 import { Role, TextMessage } from "@copilotkit/runtime-client-gql";
 import { CustomChatInterface } from "@/components/custom-chat";
 import { useState, useRef, useEffect } from "react";
 
 interface Widget {
   id: string;
-  type: "proverbs" | "weather" | "moon" | "company" | "dynamic_card";
+  type: "company" | "dynamic_card";
   title: string;
   data: any;
   zIndex: number;
@@ -77,13 +74,10 @@ export default function CopilotKitPage() {
     setWidgets(prev => [...prev, newWidget]);
   };
 
-  const [moonStatus, setMoonStatus] = useState<any>(null);
-  const [moonRespond, setMoonRespond] = useState<any>(null);
-
   // --- AGENT CONNECTION ---
   const { state, setState } = useCoAgent({
     name: "sample_agent",
-    initialState: { proverbs: [] }
+    initialState: {}
   });
 
   // --- FRONTEND TOOLS (UI Rendering & Actions) ---
@@ -173,29 +167,6 @@ export default function CopilotKitPage() {
 
 
 
-  // Human In the Loop (Moon)
-  useHumanInTheLoop(
-    {
-      name: "go_to_moon",
-      render: ({ respond, status }) => {
-        if (status !== moonStatus) {
-          setMoonStatus(status);
-          setMoonRespond(() => respond);
-
-          // Only add if not already there to avoid dupes on re-render
-          const exists = widgets.find(w => w.type === "moon");
-          if (!exists) {
-            addWidget("moon", "Mission Control", {});
-          }
-        }
-        // Return text for inside the chat popup
-        return <p className="text-sm">🚀 Mission Control active on main screen.</p>;
-      },
-    },
-    []
-  );
-
-
   return (
     <main
       className="flex flex-col h-screen relative overflow-hidden transition-colors duration-500"
@@ -245,9 +216,6 @@ export default function CopilotKitPage() {
               resizable={isUniversal || WIDGET_REGISTRY[widget.type]?.resizable}
 
             >
-              {widget.type === "proverbs" && <ProverbsCard state={state} setState={setState} />}
-              {widget.type === "weather" && <WeatherCard location={widget.data} themeColor={themeColor} />}
-              {widget.type === "moon" && <MoonCard themeColor={themeColor} status={moonStatus} respond={moonRespond} />}
               {widget.type === "company" && <CompanyCard item={widget.data} themeColor={themeColor} />}
               {widget.type === "dynamic_card" && <UniversalCard data={widget.data} />}
             </WidgetWrapper>
