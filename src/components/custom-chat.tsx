@@ -10,7 +10,9 @@ export function CustomChatInterface() {
         visibleMessages = [], // Default to empty array to prevent crash
         appendMessage,   // Back to deprecated API
         isLoading,
-    } = useCopilotChat();
+    } = useCopilotChat({
+        id: "main-chat"
+    });
 
     const [isOpen, setIsOpen] = useState(false);
     const [inputValue, setInputValue] = useState("");
@@ -98,28 +100,49 @@ export function CustomChatInterface() {
                             )}
 
                             {visibleMessages.map((msg, idx) => {
-                                // OLD API: Cast to any to access properties safely
+                                // NEW: Better logging to see exact structure
+                                if (idx === visibleMessages.length - 1 || idx < 3) {
+                                    console.log(`[Chat Debug] Msg ${idx} structure:`, JSON.stringify(msg, (key, value) => {
+                                        if (key === "parentMessageId") return undefined;
+                                        return value;
+                                    }, 2));
+                                }
+
                                 const m = msg as any;
-                                const isUser = m.role === Role.User || m.role === "user";
 
-                                // Try multiple properties for content
-                                const rawContent = m.content ?? m.text ?? m.value;
+                                // Robust role check
+                                const role = (m.role || "").toString().toLowerCase();
+                                const isUser = role === "user";
+                                const isAssistant = role === "assistant";
 
-                                // DEBUG
-                                console.log(`Msg ${idx}:`, { type: m.type, role: m.role, rawContent });
+                                // Only show user or assistant messages (ignore system/tool metadata if they leak here)
+                                if (!isUser && !isAssistant) return null;
 
-                                // Skip if completely missing (likely a tool event without text)
-                                if (rawContent === undefined || rawContent === null) return null;
+                                // Robust content extraction
+                                // 1. Check for 'content' (standard TextMessage)
+                                // 2. Check for 'text' (compatibility)
+                                // 3. Check for 'value' (compatibility)
+                                // 4. Check for nested content (some GQL structures)
+                                let content = m.content ?? m.text ?? m.value;
 
-                                // Convert to string safely
-                                const content = String(rawContent);
+                                if (typeof content === "object" && content !== null) {
+                                    content = content.value ?? content.text ?? JSON.stringify(content);
+                                }
 
-                                // Optional: Skip purely empty system messages if desired, but for debugging let's keep even empty strings if they are TextMessages
-                                // if (!content) return null; 
+                                if (content === undefined || content === null) {
+                                    // If it's an assistant message, it might be streaming or a tool call without text yet
+                                    if (isAssistant && isLoading && idx === visibleMessages.length - 1) {
+                                        return null; // Don't show empty bubble for streaming head if no content
+                                    }
+                                    return null;
+                                }
+
+                                const contentString = String(content);
+                                if (!contentString.trim()) return null;
 
                                 return (
                                     <motion.div
-                                        key={idx}
+                                        key={m.id || idx}
                                         initial={{ opacity: 0, y: 10 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         className={`flex ${isUser ? "justify-end" : "justify-start"}`}
@@ -130,7 +153,7 @@ export function CustomChatInterface() {
                                                 : "bg-white text-gray-800 border border-gray-100 rounded-tl-none"
                                                 }`}
                                         >
-                                            {content}
+                                            {contentString}
                                         </div>
                                     </motion.div>
                                 );

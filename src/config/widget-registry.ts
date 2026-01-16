@@ -1,5 +1,4 @@
 export type WidgetType =
-    | "company"
     | "dynamic_card";
 
 export interface WidgetConfig {
@@ -17,10 +16,6 @@ export interface WidgetConfig {
  * Define new widgets here to automatically enable their behavior in the main canvas.
  */
 export const WIDGET_REGISTRY: Record<WidgetType, WidgetConfig> = {
-    company: {
-        label: "Company Info",
-        resizable: true,
-    },
     dynamic_card: {
         label: "Universal Card",
         resizable: true, // All universal cards are resizable by design

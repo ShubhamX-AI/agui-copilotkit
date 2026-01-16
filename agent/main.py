@@ -15,40 +15,44 @@ from langchain.agents import create_agent
 from copilotkit import CopilotKitMiddleware, CopilotKitState
 from system_prompt import AGENT_PROMPT
 from structure import AgentOutputSchema
+import os
+from langchain_openai import OpenAIEmbeddings
+from langchain_chroma import Chroma
+
+# Initialize Vector Store
+persist_directory = os.path.join(os.path.dirname(__file__), "chroma_db")
+embeddings = OpenAIEmbeddings()
+vectorstore = Chroma(persist_directory=persist_directory, embedding_function=embeddings)
 
 # ============================================================
 # 1. DATA TOOLS (The "Brain" - Fetch Facts)
 # ============================================================
 
+
+
+
 @tool
-def get_company_data(info_types: List[Literal["services", "location"]]):
+def search_knowledge_base(query: str):
     """
-    Fetches raw data about the company.
-    Returns structured data (List of Dicts) to be used by the UI.
+    The PRIMARY source of truth. Searches the company's internal knowledge base.
+    Use this for ALL queries: Services, Locations, Policies, History, Contact info, etc.
+    Returns structured JSON with content, image_urls, and source citations.
     
     Args:
-        info_types: List of information types to fetch ("services", "location")
-    
-    Returns:
-        List of dictionaries with company information
+        query: The search query string
     """
-    data = []
+    results = vectorstore.similarity_search(query, k=3)
     
-    if "services" in info_types:
-        data.append({
-            "id": "services",
-            "title": "Our Services",
-            "description": "We specialize in AI Consulting, Custom Software Development, and Cloud Architecture, helping businesses transform through modern technology."
+    structured_results = []
+    for doc in results:
+        structured_results.append({
+            "content": doc.page_content,
+            "source": doc.metadata.get("source", "Unknown"),
+            "images": doc.metadata.get("image_urls", "").split(",") if doc.metadata.get("image_urls") else []
         })
     
-    if "location" in info_types:
-        data.append({
-            "id": "location",
-            "title": "Our Offices",
-            "description": "Headquartered in San Francisco, CA, with strategic global hubs in London and Bangalore to serve our international clients."
-        })
-        
-    return data
+    import json
+    return json.dumps(structured_results, indent=2)
 
 
 
@@ -57,7 +61,7 @@ def get_company_data(info_types: List[Literal["services", "location"]]):
 # ============================================================
 
 @tool
-def render_ui(title: str, content: List[Dict[str, Any]], id: str = None, design: dict = None, layout: str = "vertical"):
+def render_ui(title: str, content: List[Dict[str, Any]], id: str = None, design: dict = None, layout: str = "vertical", clearHistory: bool = False):
     """
     The PRIMARY tool for generating UI. This is the bridge to the frontend.
     Tell the user what to show on the screen.
@@ -68,12 +72,14 @@ def render_ui(title: str, content: List[Dict[str, Any]], id: str = None, design:
         id: Optional stable ID to update existing card
         design: Optional design config: {themeColor: str, fontFamily: 'serif'|'mono'|'sans', backgroundColor: str}
         layout: 'vertical' or 'grid'
+        clearHistory: If True, removes all previous cards before rendering this one. Default False.
         
     Content Block Types:
     - markdown: {"type": "markdown", "content": "text"}
     - key_value: {"type": "key_value", "data": {"Key": "Value"}}
     - image: {"type": "image", "url": "https://...", "alt": "description"}
     - link: {"type": "link", "url": "https://...", "text": "Click here"}
+    - flashcards: {"type": "flashcards", "items": [{"title": "...", "description": "...", "url": "...", "label": "...", "icon": "..."}]}
     - form: {"type": "form", "fields": [...], "submitLabel": "Submit", "action": "tool_name"}
     
     The CopilotKit middleware intercepts this tool's ARGUMENTS and sends them
@@ -130,7 +136,7 @@ agent = create_agent(
     model="gpt-4o-mini",
     tools=[
         # Data Tools (Pure Functions)
-        get_company_data,
+        search_knowledge_base,
         
         # Universal UI Tool (The Bridge)
         render_ui,
