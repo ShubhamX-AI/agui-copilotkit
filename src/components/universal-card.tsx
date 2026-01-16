@@ -56,7 +56,7 @@ export const UniversalCard = ({ data }: { data: UniversalCardData }) => {
             style={{ backgroundColor: design?.backgroundColor || "transparent" }}
         >
             {/* Render Blocks via Registry */}
-            <div className={`flex flex-col gap-2`}>
+            <div className={`flex ${data.layout === "grid" ? "flex-row flex-wrap" : "flex-col"} gap-2`}>
                 {content.map((block, idx) => {
                     const Component = ComponentRegistry[block.type];
 

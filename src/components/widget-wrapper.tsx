@@ -28,7 +28,7 @@ export const WidgetWrapper = ({
     themeColor = "#2563EB",
     children,
     dragConstraintsRef,
-    resizable = false,
+    resizable = true,
 }: WidgetWrapperProps) => {
     const dragControls = useDragControls();
     // Default to a wider, more premium 400px if no size provided

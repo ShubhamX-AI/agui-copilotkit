@@ -79,6 +79,7 @@ def render_ui(title: str, content: List[Dict[str, Any]], id: str = None, design:
     - key_value: {"type": "key_value", "data": {"Key": "Value"}}
     - image: {"type": "image", "url": "https://...", "alt": "description"}
     - link: {"type": "link", "url": "https://...", "text": "Click here"}
+    - flashcards: {"type": "flashcards", "items": [{"title": "...", "description": "...", "url": "...", "label": "...", "icon": "..."}]}
     - form: {"type": "form", "fields": [...], "submitLabel": "Submit", "action": "tool_name"}
     
     The CopilotKit middleware intercepts this tool's ARGUMENTS and sends them

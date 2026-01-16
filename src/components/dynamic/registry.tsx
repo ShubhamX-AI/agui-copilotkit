@@ -17,6 +17,7 @@ import { KeyValueBlock } from "./blocks/key-value-block";
 import { ImageBlock } from "./blocks/image-block";
 import { LinkBlock } from "./blocks/link-block";
 import { FormBlock } from "./blocks/form-block";
+import { FlashcardGridBlock } from "./blocks/flashcard-grid-block";
 
 // --- Registry ---
 
@@ -29,6 +30,7 @@ export const ComponentRegistry: Record<string, DynamicBlockComponent> = {
 
     // Interactivity
     "form": FormBlock,
+    "flashcards": FlashcardGridBlock,
 
     // Future expansion:
     // "chart": ChartBlock,

@@ -7,19 +7,46 @@ export const MarkdownBlock: React.FC<DynamicBlockProps> = ({ data, design }) => 
     const content = data?.content || "";
 
     return (
-        <div className="prose prose-sm max-w-none mb-4 last:mb-0 text-gray-700 leading-relaxed" style={{ color: design?.themeColor ? undefined : '#374151' }}>
-            {/* We apply some custom styling for links to respect the theme */}
+        <div className="prose prose-sm max-w-none mb-4 last:mb-0 text-slate-700 leading-relaxed font-normal" style={{ color: design?.themeColor ? undefined : '#475569' }}>
             <style jsx global>{`
                 .markdown-content a {
                     color: ${design?.themeColor || '#2563EB'};
-                    text-decoration: underline;
+                    text-decoration: none;
+                    font-weight: 600;
+                    border-bottom: 1px solid ${design?.themeColor || '#2563EB'}40;
+                    word-break: break-all;
+                    transition: all 0.2s;
+                }
+                .markdown-content a:hover {
+                    border-bottom-color: ${design?.themeColor || '#2563EB'};
+                    background-color: ${design?.themeColor || '#2563EB'}08;
                 }
                 .markdown-content strong {
-                    color: ${design?.themeColor || '#111827'}; 
+                    color: ${design?.themeColor || '#1e293b'}; 
+                }
+                .markdown-content p {
+                    margin-bottom: 0.75rem;
+                }
+                .markdown-content p:last-child {
+                    margin-bottom: 0;
                 }
             `}</style>
             <div className="markdown-content">
-                <ReactMarkdown>{content}</ReactMarkdown>
+                <ReactMarkdown
+                    components={{
+                        a: ({ node, ...props }) => (
+                            <a
+                                {...props}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:opacity-80 transition-opacity"
+                                style={{ pointerEvents: 'auto', display: 'inline' }}
+                            />
+                        )
+                    }}
+                >
+                    {content}
+                </ReactMarkdown>
             </div>
         </div>
     );
