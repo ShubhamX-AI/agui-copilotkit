@@ -21,4 +21,5 @@ dependencies = [
     "beautifulsoup4",
     "markdownify",
     "requests",
+    "playwright",
 ]

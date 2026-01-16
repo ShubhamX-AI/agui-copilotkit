@@ -28,41 +28,14 @@ vectorstore = Chroma(persist_directory=persist_directory, embedding_function=emb
 # 1. DATA TOOLS (The "Brain" - Fetch Facts)
 # ============================================================
 
-@tool
-def get_company_data(info_types: List[Literal["services", "location"]]):
-    """
-    Fetches raw data about the company.
-    Returns structured data (List of Dicts) to be used by the UI.
-    
-    Args:
-        info_types: List of information types to fetch ("services", "location")
-    
-    Returns:
-        List of dictionaries with company information
-    """
-    data = []
-    
-    if "services" in info_types:
-        data.append({
-            "id": "services",
-            "title": "Our Services",
-            "description": "We specialize in AI Consulting, Custom Software Development, and Cloud Architecture, helping businesses transform through modern technology."
-        })
-    
-    if "location" in info_types:
-        data.append({
-            "id": "location",
-            "title": "Our Offices",
-            "description": "Headquartered in San Francisco, CA, with strategic global hubs in London and Bangalore to serve our international clients."
-        })
-        
-    return data
+
 
 
 @tool
 def search_knowledge_base(query: str):
     """
-    Searches the internal knowledge base for specific company information, policies, or technical details.
+    The PRIMARY source of truth. Searches the company's internal knowledge base.
+    Use this for ALL queries: Services, Locations, Policies, History, Contact info, etc.
     Returns structured JSON with content, image_urls, and source citations.
     
     Args:
@@ -162,7 +135,6 @@ agent = create_agent(
     model="gpt-4o-mini",
     tools=[
         # Data Tools (Pure Functions)
-        get_company_data,
         search_knowledge_base,
         
         # Universal UI Tool (The Bridge)

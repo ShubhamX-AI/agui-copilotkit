@@ -7,6 +7,7 @@ import { useCoAgent, useFrontendTool, useCopilotChat } from "@copilotkit/react-c
 import { Role, TextMessage } from "@copilotkit/runtime-client-gql";
 import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
+import { ProgressBar } from "@/components/progress-bar";
 
 interface Widget {
   id: string;
@@ -55,10 +56,6 @@ export default function CopilotKitPage() {
       // Find a spot that doesn't perfectly overlap with the last few widgets
       // Simple cascade is okay but maybe vary it more.
       const index = widgets.length;
-      // 3 columns grid-ish logic for initial placement? or just cascade?
-      // Let's do a smarter cascade:
-      // x = (index * 40) % 200
-      // y = index * 40
       position = {
         x: (index * 50) % 400,
         y: index * 50
@@ -153,7 +150,7 @@ export default function CopilotKitPage() {
     }
   });
 
-  const { appendMessage } = useCopilotChat({
+  const { appendMessage, isLoading } = useCopilotChat({
     id: "main-chat"
   });
 
@@ -205,9 +202,6 @@ export default function CopilotKitPage() {
       })
     );
 
-    // We can reset search query if we want to mimic a chat input, but for "Google Search", query often stays.
-    // But since this is an "Answer Engine", maybe clearing it is fine, or keeping it. 
-    // I'll keep it for now.
     inputRef.current?.blur();
   };
 
@@ -242,24 +236,33 @@ export default function CopilotKitPage() {
           <motion.form
             layoutId="search-bar"
             onSubmit={handleSearch}
-            className={`relative w-full transition-all duration-500 rounded-full ${isSearching ? "max-w-3xl shadow-lg ring-1 ring-black/5" : "max-w-xl shadow-2xl ring-1 ring-black/5 scale-100"}`}
+            className={`relative w-full transition-all duration-500 ${isSearching ? "max-w-3xl" : "max-w-xl scale-100"}`}
           >
-            <div className="relative group rounded-full">
-              <div className={`absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full blur opacity-20 group-hover:opacity-40 transition duration-1000 group-hover:duration-200 ${isSearching ? "hidden" : "block"}`}></div>
+            <div className={`
+              relative group rounded-full overflow-hidden transition-all duration-500
+              ${isSearching ? "shadow-lg bg-white/40" : "shadow-2xl bg-white/20"}
+              backdrop-blur-xl border border-white/50 ring-1 ring-black/5
+              ${isLoading ? "ring-2 ring-blue-500/30" : ""}
+            `}>
+              <div className={`absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full blur opacity-0 group-hover:opacity-10 transition duration-1000 ${isSearching ? "hidden" : "block"}`}></div>
               <input
                 ref={inputRef}
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Ask anything..."
-                className="relative w-full bg-white/80 backdrop-blur-xl text-slate-800 border-0 rounded-full pl-8 pr-16 py-5 focus:ring-4 focus:ring-blue-500/10 focus:outline-none transition-all text-lg placeholder:text-slate-400 font-medium shadow-sm"
+                disabled={isLoading}
+                className="relative w-full bg-white/60 text-slate-800 border-0 rounded-full pl-8 pr-16 py-5 focus:ring-4 focus:ring-blue-500/5 focus:outline-none transition-all text-lg placeholder:text-slate-400 font-medium disabled:bg-white/90 disabled:text-slate-500"
               />
               <button
                 type="submit"
-                className="absolute right-2.5 top-2.5 p-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full hover:shadow-lg hover:scale-105 active:scale-95 transition-all cursor-pointer shadow-md"
+                disabled={isLoading}
+                className={`absolute right-2.5 top-2.5 p-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full hover:shadow-lg hover:scale-105 active:scale-95 transition-all cursor-pointer shadow-md ${isLoading ? "opacity-80 scale-95 cursor-wait" : ""}`}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
               </button>
+
+              <ProgressBar isLoading={isLoading} themeColor={themeColor} />
             </div>
           </motion.form>
 
@@ -280,7 +283,7 @@ export default function CopilotKitPage() {
                 id={widget.id}
                 title={widget.title}
                 zIndex={widget.zIndex}
-                initialPosition={widget.position} // Position might need reset logic
+                initialPosition={widget.position}
                 initialSize={widget.initialSize}
                 onClose={closeWidget}
                 onFocus={bringToFront}
