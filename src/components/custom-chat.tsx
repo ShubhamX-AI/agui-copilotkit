@@ -1,203 +1,561 @@
 "use client";
 
-import React, { useRef, useEffect, useState } from "react";
-import { useCopilotChat } from "@copilotkit/react-core";
+import React, { useState, useRef, useEffect } from "react";
+import { CopilotChat } from "@copilotkit/react-ui";
+import { useCoAgent, useFrontendTool, useCopilotChat } from "@copilotkit/react-core";
 import { Role, TextMessage } from "@copilotkit/runtime-client-gql";
 import { motion, AnimatePresence } from "framer-motion";
+import "@copilotkit/react-ui/styles.css";
 
-export function CustomChatInterface() {
-    const {
-        visibleMessages = [], // Default to empty array to prevent crash
-        appendMessage,   // Back to deprecated API
-        isLoading,
-    } = useCopilotChat({
-        id: "main-chat"
-    });
+// Import your custom UI components
+import { UniversalCard, UniversalCardData } from "@/components/universal-card";
+import { WidgetWrapper } from "@/components/widget-wrapper";
+import { WIDGET_REGISTRY } from "@/config/widget-registry";
+import { ProgressBar } from "@/components/progress-bar";
 
-    const [isOpen, setIsOpen] = useState(false);
-    const [inputValue, setInputValue] = useState("");
-    const messagesEndRef = useRef<HTMLDivElement>(null);
-    const inputRef = useRef<HTMLInputElement>(null);
+// ==========================================
+// 1. CUSTOM AGENT MESSAGE (Reasoning UI)
+// ==========================================
 
-    // Auto-scroll to bottom
-    useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [visibleMessages]);
+function AgentMessage({ bubbleContent }: { bubbleContent: string }) {
+    const [showReasoning, setShowReasoning] = useState(false);
 
-    // Focus input when opened
-    useEffect(() => {
-        if (isOpen) {
-            setTimeout(() => inputRef.current?.focus(), 300);
+    let displayContent = bubbleContent;
+    let reasoning = "";
+
+    try {
+        const parsed = JSON.parse(bubbleContent);
+        if (parsed.chat_message) {
+            displayContent = parsed.chat_message;
+            reasoning = parsed.thought;
         }
-    }, [isOpen]);
+    } catch (e) {
+        // Not JSON, treat as raw text
+    }
 
-    const handleSendMessage = async (e?: React.FormEvent) => {
-        e?.preventDefault();
-        if (!inputValue.trim()) return;
-
-        // Use deprecated appendMessage API with TextMessage class
-        await appendMessage(
-            new TextMessage({
-                role: Role.User,
-                content: inputValue,
-            })
-        );
-        setInputValue("");
-    };
-
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault();
-            handleSendMessage();
-        }
-    };
+    // Prevents rendering empty bubbles for tool-only messages
+    if (!displayContent && !reasoning) return null;
 
     return (
-        <>
-            {/* Floating Toggle Button */}
-            <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setIsOpen(!isOpen)}
-                className={`fixed bottom-6 right-6 z-50 p-4 rounded-full shadow-2xl transition-all duration-300 flex items-center justify-center 
-          ${isOpen ? "bg-white text-blue-600 rotate-90" : "bg-gradient-to-r from-blue-600 to-blue-500 text-white"}
-        `}
-            >
-                {isOpen ? (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-                )}
-            </motion.button>
+        <div className="flex flex-col gap-2 w-full mb-4">
+            {/* Main Response Bubble */}
+            {displayContent && (
+                <div className="p-4 rounded-2xl text-sm leading-relaxed shadow-sm bg-white text-gray-800 border border-gray-100 rounded-tl-none">
+                    {displayContent}
+                </div>
+            )}
 
-            {/* Chat Window */}
-            <AnimatePresence>
-                {isOpen && (
-                    <motion.div
-                        initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 20, scale: 0.95 }}
-                        transition={{ duration: 0.2 }}
-                        className="fixed bottom-24 right-6 w-[90vw] md:w-[400px] h-[60vh] md:h-[600px] bg-white rounded-2xl shadow-2xl border border-gray-100 flex flex-col overflow-hidden z-40 origin-bottom-right"
+            {/* Reasoning Toggle */}
+            {reasoning && (
+                <div className="self-start">
+                    <button
+                        onClick={() => setShowReasoning(!showReasoning)}
+                        className="group flex items-center gap-2 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-full text-xs font-semibold uppercase tracking-wide transition-all"
                     >
-                        {/* Header */}
-                        <div className="bg-gradient-to-r from-blue-600 to-blue-500 p-4 flex items-center justify-between shrink-0">
-                            <div>
-                                <h2 className="text-white font-bold text-lg">AI Assistant</h2>
-                                <p className="text-blue-100 text-xs">Powered by CopilotKit</p>
-                            </div>
-                        </div>
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="12"
+                            height="12"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="3"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className={`transition-transform duration-300 ${showReasoning ? "rotate-180" : ""}`}
+                        >
+                            <path d="m6 9 6 6 6-6" />
+                        </svg>
+                        {showReasoning ? "Hide Reasoning" : "View Reasoning"}
+                    </button>
 
-                        {/* Messages Area */}
-                        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
-                            {visibleMessages.length === 0 && (
-                                <div className="h-full flex flex-col items-center justify-center text-center p-6 text-gray-400 opacity-60">
-                                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4 text-blue-500">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" /></svg>
-                                    </div>
-                                    <p className="text-sm font-medium">How can I help you today?</p>
-                                </div>
-                            )}
-
-                            {visibleMessages.map((msg, idx) => {
-                                // NEW: Better logging to see exact structure
-                                if (idx === visibleMessages.length - 1 || idx < 3) {
-                                    console.log(`[Chat Debug] Msg ${idx} structure:`, JSON.stringify(msg, (key, value) => {
-                                        if (key === "parentMessageId") return undefined;
-                                        return value;
-                                    }, 2));
-                                }
-
-                                const m = msg as any;
-
-                                // Robust role check
-                                const role = (m.role || "").toString().toLowerCase();
-                                const isUser = role === "user";
-                                const isAssistant = role === "assistant";
-
-                                // Only show user or assistant messages (ignore system/tool metadata if they leak here)
-                                if (!isUser && !isAssistant) return null;
-
-                                // Robust content extraction
-                                // 1. Check for 'content' (standard TextMessage)
-                                // 2. Check for 'text' (compatibility)
-                                // 3. Check for 'value' (compatibility)
-                                // 4. Check for nested content (some GQL structures)
-                                let content = m.content ?? m.text ?? m.value;
-
-                                if (typeof content === "object" && content !== null) {
-                                    content = content.value ?? content.text ?? JSON.stringify(content);
-                                }
-
-                                if (content === undefined || content === null) {
-                                    // If it's an assistant message, it might be streaming or a tool call without text yet
-                                    if (isAssistant && isLoading && idx === visibleMessages.length - 1) {
-                                        return null; // Don't show empty bubble for streaming head if no content
-                                    }
-                                    return null;
-                                }
-
-                                const contentString = String(content);
-                                if (!contentString.trim()) return null;
-
-                                return (
-                                    <motion.div
-                                        key={m.id || idx}
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        className={`flex ${isUser ? "justify-end" : "justify-start"}`}
-                                    >
-                                        <div
-                                            className={`max-w-[85%] p-3 rounded-2xl text-sm leading-relaxed shadow-sm ${isUser
-                                                ? "bg-blue-600 text-white rounded-tr-none"
-                                                : "bg-white text-gray-800 border border-gray-100 rounded-tl-none"
-                                                }`}
-                                        >
-                                            {contentString}
-                                        </div>
-                                    </motion.div>
-                                );
-                            })}
-
-                            {isLoading && (
-                                <div className="flex justify-start">
-                                    <div className="bg-white border border-gray-100 p-3 rounded-2xl rounded-tl-none shadow-sm flex gap-1 items-center">
-                                        <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce"></span>
-                                        <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce delay-75"></span>
-                                        <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce delay-150"></span>
-                                    </div>
-                                </div>
-                            )}
-                            <div ref={messagesEndRef} />
-                        </div>
-
-                        {/* Input Area */}
-                        <div className="p-4 bg-white border-t border-gray-100 shrink-0">
-                            <form
-                                onSubmit={handleSendMessage}
-                                className="flex items-center gap-2 bg-gray-50 p-2 rounded-xl border border-gray-200 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all"
+                    <AnimatePresence>
+                        {showReasoning && (
+                            <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: "auto", opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="overflow-hidden"
                             >
+                                <div className="mt-2 p-4 bg-slate-50 rounded-xl border border-blue-100 text-sm text-slate-600 leading-relaxed font-mono">
+                                    <div className="flex items-center gap-2 mb-2 text-blue-500 font-bold uppercase text-[10px] tracking-widest">
+                                        <div className="w-2 h-2 rounded-full bg-blue-500" />
+                                        Thought Process
+                                    </div>
+                                    {reasoning}
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+            )}
+        </div>
+    );
+}
+
+const CustomAssistantMessage = ({ message }: any) => {
+    const content = message?.content || message?.text || "";
+    return <AgentMessage bubbleContent={content} />;
+};
+
+// ==========================================
+// 2. TYPES
+// ==========================================
+
+interface Widget {
+    id: string;
+    type: "dynamic_card";
+    title: string;
+    data: any;
+    zIndex: number;
+    position: { x: number; y: number };
+    initialSize?: { width: number; height: number | "auto" };
+}
+
+// ==========================================
+// 3. MAIN CONTENT AREA (The Right Side)
+// ==========================================
+
+function MainAppContent({
+    themeColor,
+    widgets,
+    closeWidget,
+    bringToFront,
+    handleSearch,
+    searchQuery,
+    setSearchQuery,
+    isLoading,
+    isSearching,
+    hasChatStarted
+}: any) {
+    const constraintsRef = useRef<HTMLDivElement>(null);
+
+    // Show results if we are explicitly searching OR if there are cards to show
+    const showResults = isSearching || widgets.length > 0;
+
+    return (
+        <div
+            className="relative flex-1 h-full overflow-hidden transition-colors duration-1000"
+            style={{
+                background: `linear-gradient(135deg, ${themeColor}15 0%, #ffffff 40%, ${themeColor}10 100%)`
+            }}
+        >
+            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none mix-blend-soft-light"></div>
+
+            {/* Search Interface - Only visible BEFORE chat starts */}
+            {!hasChatStarted && (
+                <div className={`absolute inset-0 z-20 flex flex-col items-center transition-all duration-700 ease-in-out ${showResults ? "justify-start pt-12 pb-4" : "justify-center"}`}>
+                    <div className={`flex flex-col items-center gap-8 w-full ${showResults ? "max-w-4xl" : "max-w-2xl"} px-6 transition-all duration-700`}>
+                        {/* Branding */}
+                        <motion.div
+                            layoutId="logo"
+                            className={`font-extrabold tracking-tighter transition-all duration-700 ${showResults ? "text-3xl" : "text-5xl mb-4"}`}
+                        >
+                            <span
+                                className="bg-clip-text text-transparent drop-shadow-sm transition-all duration-1000"
+                                style={{
+                                    backgroundImage: `linear-gradient(to right, ${themeColor}, ${themeColor}dd, ${themeColor}aa)`
+                                }}
+                            >
+                                INT
+                            </span>
+                            <span className="text-slate-800 drop-shadow-sm"> Intelligence</span>
+                        </motion.div>
+
+                        {!showResults && (
+                            <p className="text-slate-500 mb-4">Search everything with AI.</p>
+                        )}
+
+                        <motion.form
+                            layoutId="search-bar"
+                            onSubmit={handleSearch}
+                            className={`relative w-full transition-all duration-500 ${showResults ? "max-w-3xl" : "max-w-xl scale-100"}`}
+                        >
+                            <div className={`
+                                relative group rounded-full overflow-hidden transition-all duration-500
+                                ${showResults ? "shadow-lg bg-white/40" : "shadow-2xl bg-white/20"}
+                                backdrop-blur-xl border border-white/50 ring-1 ring-black/5
+                                ${isLoading ? "ring-2 ring-blue-500/30" : ""}
+                            `}>
                                 <input
-                                    ref={inputRef}
                                     type="text"
-                                    value={inputValue}
-                                    onChange={(e) => setInputValue(e.target.value)}
-                                    onKeyDown={handleKeyDown}
-                                    placeholder="Type a message..."
-                                    className="flex-1 bg-transparent border-none outline-none text-sm text-gray-800 placeholder:text-gray-400 px-2"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    placeholder="Ask anything..."
+                                    disabled={isLoading}
+                                    className="relative w-full bg-white/60 text-slate-800 border-0 rounded-full pl-8 pr-16 py-5 focus:ring-4 focus:ring-blue-500/5 focus:outline-none transition-all text-lg placeholder:text-slate-400 font-medium disabled:bg-white/90 disabled:text-slate-500"
                                 />
                                 <button
                                     type="submit"
-                                    disabled={!inputValue.trim() || isLoading}
-                                    className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                    disabled={isLoading}
+                                    className={`absolute right-2.5 top-2.5 p-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full hover:shadow-lg hover:scale-105 active:scale-95 transition-all cursor-pointer shadow-md ${isLoading ? "opacity-80 scale-95 cursor-wait" : ""}`}
                                 >
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
                                 </button>
-                            </form>
+                                <ProgressBar isLoading={isLoading} themeColor={themeColor} />
+                            </div>
+                        </motion.form>
+                    </div>
+                </div>
+            )}
+
+            {/* Results/Widgets Area - Full height when chat started, with top padding before */}
+            <div ref={constraintsRef} className={`absolute inset-0 ${hasChatStarted ? "p-8" : "pt-32 p-8"} transition-all duration-500 ${showResults ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}>
+                <div className="w-full h-full flex items-start justify-center overflow-y-auto">
+                    {widgets.map((widget: Widget) => {
+                        const designColor = (widget.data as UniversalCardData).design?.themeColor;
+                        return (
+                            <WidgetWrapper
+                                key={widget.id}
+                                id={widget.id}
+                                title={widget.title}
+                                zIndex={widget.zIndex}
+                                initialPosition={widget.position}
+                                initialSize={widget.initialSize}
+                                onClose={closeWidget}
+                                onFocus={bringToFront}
+                                dragConstraintsRef={constraintsRef}
+                                themeColor={designColor || themeColor}
+                                backgroundColor={(widget.data as UniversalCardData).design?.backgroundColor}
+                                resizable={WIDGET_REGISTRY[widget.type as keyof typeof WIDGET_REGISTRY]?.resizable}
+                            >
+                                <UniversalCard data={widget.data} />
+                            </WidgetWrapper>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {/* Footer / Status */}
+            <div className="absolute bottom-8 right-8 flex gap-4 text-slate-400 text-sm">
+                <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-green-500"></div> System Online</span>
+                <span>v1.50.2</span>
+            </div>
+        </div>
+    );
+}
+
+// ==========================================
+// 4. MAIN LAYOUT WRAPPER
+// ==========================================
+
+export default function App() {
+    // --- STATE MANAGEMENT ---
+    const [themeColor, setThemeColor] = useState("#2563EB");
+    const [widgets, setWidgets] = useState<Widget[]>([]);
+    const [highestZ, setHighestZ] = useState(10);
+    const [isSearching, setIsSearching] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [hasChatStarted, setHasChatStarted] = useState(false);
+    const [canvasDimensions, setCanvasDimensions] = useState({ width: 0, height: 0 });
+    const [recentCards, setRecentCards] = useState<string[]>([]);  // Track recently added cards
+    const [isUiLoading, setIsUiLoading] = useState(false);
+    const [pendingWidgetCount, setPendingWidgetCount] = useState(0);
+    const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    const canvasRef = useRef<HTMLDivElement>(null);
+    const lastSyncedDimensionsRef = useRef({ width: 0, height: 0 });
+
+    const bringToFront = (id: string) => {
+        setHighestZ(prev => prev + 1);
+        setWidgets(prev => prev.map(w => w.id === id ? { ...w, zIndex: highestZ + 1 } : w));
+    };
+
+    const closeWidget = (id: string) => {
+        setWidgets(prev => prev.filter(w => w.id !== id));
+    };
+
+    const addWidget = (type: Widget["type"], title: string, data: any, id?: string, shouldClear: boolean = false, initialSize?: { width: number; height: number | "auto" }) => {
+        const newId = id || Math.random().toString(36).substring(7);
+        let position = { x: 0, y: 0 };
+
+        // Clear all cards if requested
+        if (shouldClear) {
+            const newWidget: Widget = {
+                id: newId,
+                type,
+                title,
+                data,
+                zIndex: highestZ + 1,
+                position,
+                initialSize
+            };
+            setHighestZ(prev => prev + 1);
+            setWidgets([newWidget]);
+            setRecentCards([newId]);
+            return;
+        }
+
+        // Calculate grid position based on recent cards
+        const cardWidth = initialSize?.width || 320;
+        const cardHeight = initialSize?.height === "auto" ? 400 : (initialSize?.height || 400);
+        const padding = 20;
+        const availableWidth = canvasDimensions.width || 1200;
+
+        // Calculate how many cards fit per row
+        const cardsPerRow = Math.floor(availableWidth / (cardWidth + padding)) || 1;
+
+        // Check if updating existing card
+        const existingIndex = widgets.findIndex(w => (id && w.id === id) || (type === "dynamic_card" && w.title === title));
+
+        if (existingIndex !== -1) {
+            setWidgets(prev => {
+                const newWidgets = [...prev];
+                const existing = newWidgets[existingIndex];
+                newWidgets[existingIndex] = {
+                    ...existing,
+                    title,
+                    data: { ...existing.data, ...data },
+                    zIndex: highestZ + 1,
+                    initialSize: initialSize || existing.initialSize
+                };
+                return newWidgets;
+            });
+            setHighestZ(prev => prev + 1);
+            return;
+        }
+
+        // Calculate position for NEW card
+        const currentCardCount = widgets.length;
+        const col = currentCardCount % cardsPerRow;
+        const row = Math.floor(currentCardCount / cardsPerRow);
+
+        position = {
+            x: col * (cardWidth + padding) + padding,
+            y: row * (cardHeight + padding) + padding
+        };
+
+        const newWidget: Widget = {
+            id: newId,
+            type,
+            title,
+            data,
+            zIndex: highestZ + 1,
+            position,
+            initialSize: initialSize || { width: cardWidth, height: "auto" }
+        };
+
+        // Add new card
+        setHighestZ(prev => prev + 1);
+        setWidgets(prev => [...prev, newWidget]);
+
+        // Track recent cards for potential batch layout
+        setRecentCards(prev => {
+            const updated = [...prev, newId];
+            // Keep only last 20 cards in tracking
+            return updated.slice(-20);
+        });
+    };
+
+    // --- CANVAS DIMENSION TRACKING ---
+    useEffect(() => {
+        if (!canvasRef.current) return;
+
+        const updateDimensions = () => {
+            if (canvasRef.current) {
+                const rect = canvasRef.current.getBoundingClientRect();
+                const newWidth = Math.round(rect.width);
+                const newHeight = Math.round(rect.height);
+
+                setCanvasDimensions(prev => {
+                    if (prev.width === newWidth && prev.height === newHeight) {
+                        return prev;
+                    }
+                    return { width: newWidth, height: newHeight };
+                });
+            }
+        };
+
+        updateDimensions();
+        const resizeObserver = new ResizeObserver(updateDimensions);
+        resizeObserver.observe(canvasRef.current);
+
+        return () => resizeObserver.disconnect();
+    }, [hasChatStarted]);
+
+    // --- AGENT CONNECTION ---
+    const { state, setState } = useCoAgent({
+        name: "sample_agent",
+        initialState: {
+            canvas_width: canvasDimensions.width,
+            canvas_height: canvasDimensions.height
+        }
+    });
+
+    // Update agent state when canvas dimensions change
+    // IMPORTANT: Don't include setState in dependencies to avoid infinite loop
+    useEffect(() => {
+        // Only update if dimensions actually changed from last sync
+        if (
+            canvasDimensions.width !== lastSyncedDimensionsRef.current.width ||
+            canvasDimensions.height !== lastSyncedDimensionsRef.current.height
+        ) {
+            lastSyncedDimensionsRef.current = canvasDimensions;
+            setState({
+                canvas_width: canvasDimensions.width,
+                canvas_height: canvasDimensions.height
+            });
+        }
+    }, [canvasDimensions]); // Only depend on canvasDimensions, NOT setState
+
+    const { appendMessage, isLoading } = useCopilotChat({
+        id: "main-chat"
+    });
+
+    // --- FRONTEND TOOLS ---
+    useFrontendTool({
+        name: "setThemeColor",
+        parameters: [{ name: "themeColor", type: "string", required: true }],
+        handler({ themeColor }) {
+            setThemeColor(themeColor);
+        },
+    });
+
+    useFrontendTool({
+        name: "render_ui",
+        description: "Displays a flexible card with mixed content. ",
+        parameters: [
+            { name: "id", type: "string", required: false },
+            { name: "title", type: "string", required: true },
+            { name: "content", type: "object[]", required: true },
+            { name: "design", type: "object", required: false },
+            { name: "layout", type: "string", required: false },
+            { name: "clearHistory", type: "boolean", required: false },
+            { name: "dimensions", type: "object", required: false }
+        ],
+        handler({ id, title, content, design, clearHistory, dimensions }) {
+            addWidget("dynamic_card", title, { title, content, design }, id, clearHistory, dimensions as any);
+
+            // Increment pending count to track widget rendering
+            setPendingWidgetCount(prev => prev + 1);
+
+            // Clear any existing timeout
+            if (loadingTimeoutRef.current) {
+                clearTimeout(loadingTimeoutRef.current);
+            }
+
+            // Set a timeout to dismiss loading after animations complete
+            // This gives time for framer-motion animations to finish
+            loadingTimeoutRef.current = setTimeout(() => {
+                setIsUiLoading(false);
+                setPendingWidgetCount(0);
+            }, 1500); // 1.5 seconds should cover staggered animations
+        }
+    });
+
+    useFrontendTool({
+        name: "delete_card",
+        description: "Deletes a card/widget.",
+        parameters: [
+            { name: "id", type: "string", required: false },
+            { name: "title", type: "string", required: false }
+        ],
+        handler({ id, title }) {
+            if (id) {
+                closeWidget(id);
+            } else if (title) {
+                const target = widgets.find(w => w.title.toLowerCase().includes(title.toLowerCase()));
+                if (target) {
+                    closeWidget(target.id);
+                }
+            }
+        }
+    });
+
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        const handleAguiAction = (e: any) => {
+            const { action, payload, cardTitle } = e.detail;
+            appendMessage(
+                new TextMessage({
+                    role: Role.User,
+                    content: `[Form Submitted: ${cardTitle}]\nAction: ${action}\nData: ${JSON.stringify(payload, null, 2)}`
+                })
+            );
+        };
+        window.addEventListener("agui:action", handleAguiAction);
+        return () => window.removeEventListener("agui:action", handleAguiAction);
+    }, [appendMessage]);
+
+    // --- SEARCH HANDLER ---
+    const handleSearch = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!searchQuery.trim()) return;
+
+        setHasChatStarted(true);
+        setIsSearching(true);
+        setIsUiLoading(true);
+        await appendMessage(
+            new TextMessage({
+                role: Role.User,
+                content: searchQuery
+            })
+        );
+        // After appendMessage, if no UI rendering was triggered within 3 seconds, clear loading
+        // This acts as a fallback in case the agent doesn't call render_ui
+        setTimeout(() => {
+            if (pendingWidgetCount === 0) {
+                setIsUiLoading(false);
+            }
+        }, 3000);
+    };
+
+    return (
+        <div className="flex flex-row h-screen w-full overflow-hidden bg-white" style={{ "--copilot-kit-primary-color": themeColor } as any}>
+
+            {/* LEFT SIDE: AI Chat (Conditional Sidebar with Animation) */}
+            <AnimatePresence>
+                {hasChatStarted && (
+                    <motion.div
+                        initial={{ x: -450, opacity: 0 }}
+                        animate={{ x: 0, opacity: 1 }}
+                        exit={{ x: -450, opacity: 0 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                        className="w-[450px] flex flex-col border-r border-slate-100 bg-gradient-to-b from-blue-50/30 via-white to-indigo-50/20"
+                    >
+                        <div className="bg-white/50 backdrop-blur-sm border-b border-slate-100 px-6 py-4 flex items-center justify-between shadow-sm">
+                            <div className="flex flex-col">
+                                <h2 className="font-extrabold text-xl tracking-tighter">
+                                    <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600">
+                                        INT
+                                    </span>
+                                    <span className="text-slate-800"> Intelligence</span>
+                                </h2>
+                                <span className="text-[10px] text-slate-400 font-medium uppercase tracking-widest">Powered by AI</span>
+                            </div>
+                        </div>
+
+                        <div className="flex-1 overflow-hidden">
+                            <CopilotChat
+                                instructions="You are a helpful assistant for INT Intelligence."
+                                labels={{
+                                    title: "INT Copilot",
+                                    initial: "Hi! I can help you search through our SDK and docs.",
+                                    placeholder: "Type a message...",
+                                }}
+                                AssistantMessage={CustomAssistantMessage}
+                                className="h-full"
+                            />
                         </div>
                     </motion.div>
                 )}
             </AnimatePresence>
-        </>
+
+            {/* RIGHT SIDE: Main Content & Dynamic UI */}
+            <div ref={canvasRef} className="flex-1 h-full">
+                <MainAppContent
+                    themeColor={themeColor}
+                    widgets={widgets}
+                    closeWidget={closeWidget}
+                    bringToFront={bringToFront}
+                    handleSearch={handleSearch}
+                    searchQuery={searchQuery}
+                    setSearchQuery={setSearchQuery}
+                    isLoading={isLoading || isUiLoading}
+                    isSearching={isSearching}
+                    hasChatStarted={hasChatStarted}
+                />
+            </div>
+        </div>
     );
 }
