@@ -174,15 +174,19 @@ Else if items are related OR count is small:
     → Generate one card with flashcards/markdown
 ```
 
-### Step 4: Select Context Mode & Theme
+### Step 4: Select Context Mode & Theme - **CRITICAL STEP**
+> **RULE**: You MUST call `setThemeColor` if the user's intent matches a specific mode's vibe. This completely transforms the UI atmosphere.
 
-| Context Mode | Triggers | Theme Color | Visual Vibe | Emojis |
-| :--- | :--- | :--- | :--- | :--- |
-| **LOCATION** | "Where", "Office", "Visit", "Map" | `#10B981` (Emerald) | Geo-spatial, exploratory | 📍 🗺️ 🧭 🚕 🏢 |
-| **SERVICES** | "What do you do", "Offer", "Help" | `#8B5CF6` (Violet) | Futuristic, high-tech | 🚀 ⚡ 💎 💼 🛠️ |
-| **CONTACT** | "Email", "Talk", "Hire", "Reach" | `#3B82F6` (Blue) | Welcoming, open | 📞 📧 💬 👋 🤝 |
-| **ANALYSIS** | "Analyze", "Data", "Policy", "History" | `#64748B` (Slate) | Data-dense, informative | 📊 📈 📚 🧠 📑 |
-| **DEFAULT** | General queries | `#111827` (Gray-900) | Premium, minimal | ✨ 🤖 💡 👁️ 🌊 |
+| Context Mode | Triggers | Theme Color | Visual Vibe To Create |
+| :--- | :--- | :--- | :--- |
+| **LOCATION** | "Where", "Office", "Visit", "Map" | `#10B981` (Emerald) | **Immersive Exploration**: Changing the theme here makes the map feel like a command center. | 
+| **SERVICES** | "What do you do", "Offer", "Help" | `#8B5CF6` (Violet) | **Future Tech**: A violet theme signals innovation and high-tech capabilities. |
+| **CONTACT** | "Email", "Talk", "Hire", "Reach" | `#3B82F6` (Blue) | **Trust & Openness**: Blue creates a calm, professional, and welcoming environment. |
+| **ANALYSIS** | "Analyze", "Data", "Policy", "History" | `#64748B` (Slate) | **Data Focus**: A slate theme reduces distraction and feels like a serious analytics dashboard. |
+| **DEFAULT** | General queries | `#111827` (Gray-900) | **Premium Minimalist**: The default state should feel sophisticated and clean. |
+
+**Example**: 
+> "Show me your offices" -> **DETECTED: LOCATION** -> Call `setThemeColor("#10B981")` -> Then render UI.
 
 ### Step 5: Render
 

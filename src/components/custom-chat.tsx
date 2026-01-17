@@ -134,7 +134,12 @@ function MainAppContent({
     const showResults = isSearching || widgets.length > 0;
 
     return (
-        <div className="relative flex-1 h-full bg-gradient-to-br from-indigo-50 via-white to-cyan-50 overflow-hidden">
+        <div
+            className="relative flex-1 h-full overflow-hidden transition-colors duration-1000"
+            style={{
+                background: `linear-gradient(135deg, ${themeColor}15 0%, #ffffff 40%, ${themeColor}10 100%)`
+            }}
+        >
             <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none mix-blend-soft-light"></div>
 
             {/* Search Interface - Only visible BEFORE chat starts */}
@@ -146,7 +151,14 @@ function MainAppContent({
                             layoutId="logo"
                             className={`font-extrabold tracking-tighter transition-all duration-700 ${showResults ? "text-3xl" : "text-5xl mb-4"}`}
                         >
-                            <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 drop-shadow-sm">INT</span>
+                            <span
+                                className="bg-clip-text text-transparent drop-shadow-sm transition-all duration-1000"
+                                style={{
+                                    backgroundImage: `linear-gradient(to right, ${themeColor}, ${themeColor}dd, ${themeColor}aa)`
+                                }}
+                            >
+                                INT
+                            </span>
                             <span className="text-slate-800 drop-shadow-sm"> Intelligence</span>
                         </motion.div>
 
@@ -236,6 +248,7 @@ export default function App() {
     const [hasChatStarted, setHasChatStarted] = useState(false);
     const [canvasDimensions, setCanvasDimensions] = useState({ width: 0, height: 0 });
     const [recentCards, setRecentCards] = useState<string[]>([]);  // Track recently added cards
+    const [isUiLoading, setIsUiLoading] = useState(false);
 
     const canvasRef = useRef<HTMLDivElement>(null);
     const lastSyncedDimensionsRef = useRef({ width: 0, height: 0 });
@@ -408,6 +421,8 @@ export default function App() {
         ],
         handler({ id, title, content, design, clearHistory, dimensions }) {
             addWidget("dynamic_card", title, { title, content, design }, id, clearHistory, dimensions as any);
+            // Once render_ui completes adding the widget, we can stop the UI loading state
+            setIsUiLoading(false);
         }
     });
 
@@ -452,12 +467,16 @@ export default function App() {
 
         setHasChatStarted(true);
         setIsSearching(true);
+        setIsUiLoading(true);
         await appendMessage(
             new TextMessage({
                 role: Role.User,
                 content: searchQuery
             })
         );
+        // After appendMessage, if no UI rendering was triggered, we should still clear isUiLoading
+        // But we wait a bit to allow for tool calls to potentially trigger
+        setTimeout(() => setIsUiLoading(false), 2000);
     };
 
     return (
@@ -511,7 +530,7 @@ export default function App() {
                     handleSearch={handleSearch}
                     searchQuery={searchQuery}
                     setSearchQuery={setSearchQuery}
-                    isLoading={isLoading}
+                    isLoading={isLoading || isUiLoading}
                     isSearching={isSearching}
                     hasChatStarted={hasChatStarted}
                 />
