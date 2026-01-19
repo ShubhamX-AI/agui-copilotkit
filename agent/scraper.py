@@ -3,10 +3,9 @@ import requests
 from bs4 import BeautifulSoup
 from markdownify import markdownify as md
 from urllib.parse import urljoin, urlparse
-from langchain_chroma import Chroma
-from langchain_openai import OpenAIEmbeddings
 from langchain_core.documents import Document
 from langchain_text_splitters import MarkdownTextSplitter
+from insert_data_db import insert_data
 from dotenv import load_dotenv
 import time
 
@@ -21,13 +20,7 @@ class JewelScraper:
         self.visited = self._load_history()
         self.documents = []
         
-        # Initialize Vector Store
-        self.embeddings = OpenAIEmbeddings()
-        self.persist_directory = os.path.join(os.path.dirname(__file__), "chroma_db")
-        self.vectorstore = Chroma(
-            persist_directory=self.persist_directory, 
-            embedding_function=self.embeddings
-        )
+
 
     def _load_history(self):
         """Loads previously scraped URLs from disk."""
@@ -124,12 +117,7 @@ class JewelScraper:
 
         print(f"💎 Scrape session complete. Processed {pages_scraped_this_session} new pages.")
         
-        if self.documents:
-            print(f"💎 Ingesting {len(self.documents)} chunks into ChromaDB...")
-            self.vectorstore.add_documents(self.documents)
-            print("💎 Ingestion Finished!")
-        else:
-            print("💎 No new content to ingest.")
+        insert_data(self.documents)
 
     def _create_chunks(self, text, title, url, images):
         """
